@@ -1,0 +1,33 @@
+:root {
+  color-scheme: light;
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #1c1917;
+  background: #faf8f5;
+  --color-text: #1c1917;
+  --color-muted: #57534e;
+  --color-accent: #1d4e4a;
+  --color-border: #e7e5e4;
+  --color-surface: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--color-bg, #faf8f5);
+}
+
+button,
+input {
+  font: inherit;
+}
