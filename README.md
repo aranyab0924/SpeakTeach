@@ -43,6 +43,7 @@ Supabase. Never commit `.env` files or a service-role key.
 If you are setting up Supabase login and saving practice logs, follow:
 
 - [docs/HUMAN_TEAM.md](docs/HUMAN_TEAM.md)
+- [docs/HANDOFF_AUTH.md](docs/HANDOFF_AUTH.md)
 
 ## Contracts
 
