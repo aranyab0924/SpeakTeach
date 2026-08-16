@@ -37,16 +37,3 @@ The Vite dev server proxies `/api` to `http://localhost:8000`.
 
 Copy `.env.example` values into `frontend/.env.local` when you add
 Supabase. Never commit `.env` files or a service-role key.
-
-## Auth / human team
-
-If you are setting up Supabase login and saving practice logs, follow:
-
-- [docs/HUMAN_TEAM.md](docs/HUMAN_TEAM.md)
-- [docs/HANDOFF_AUTH.md](docs/HANDOFF_AUTH.md)
-
-## Contracts
-
-- [shared/API_CONTRACT.md](shared/API_CONTRACT.md)
-- [shared/DATABASE.md](shared/DATABASE.md)
-- Agent ownership: [AGENTS.md](AGENTS.md)
