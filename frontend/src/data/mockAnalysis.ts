@@ -32,14 +32,18 @@ export const MOCK_ANALYSIS_RESULT: AnalysisResult = {
   ],
   patterns: [],
   feedback: {
-    summary:
-      "Two stuttering events showed up in this reading: one repetition and one prolongation.",
-    strengths: ["You completed the full sentence.", "Your overall pace stayed unhurried."],
+    summary: "2 events were detected in this recording: 1 repetition and 1 prolongation.",
+    strengths: [
+      "You completed the recording in one take.",
+      "A transcript was produced from this take.",
+    ],
     observations: [
-      "The repetition happened near the start of a phrase.",
-      "The prolongation landed on a final word.",
+      "A repetition was marked from 1.2s to 1.6s on “m-morning” (confidence 86%).",
+      "A prolongation was marked from 4.1s to 4.8s on “lake” (confidence 79%).",
+      "Speech rate was measured at 110 words per minute.",
+      "Pauses accounted for 18% of the recording duration.",
     ],
     next_step:
-      "Read the same sentence once more. Ease into the first word and release the last word without holding it.",
+      "Repeat this prompt once more. Ease into the first marked word and release the last marked sound without holding it.",
   },
 };

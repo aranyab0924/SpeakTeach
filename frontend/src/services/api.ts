@@ -1,4 +1,5 @@
 import type { AnalysisResult, HealthResponse } from "../types/analysis";
+import { recordingFilename } from "./audio";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -20,7 +21,7 @@ export async function analyzeAudio(
   exerciseId: string,
 ): Promise<AnalysisResult> {
   const body = new FormData();
-  body.append("file", file, "recording.webm");
+  body.append("file", file, recordingFilename(file));
   body.append("exercise_id", exerciseId);
 
   const response = await fetch(`${API_BASE}/api/v1/analyze`, {
