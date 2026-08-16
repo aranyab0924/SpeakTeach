@@ -10,6 +10,8 @@ _DIAGNOSIS_TERMS = (
     "medical condition",
     "you have a stutter",
     "symptom",
+    "fluent",
+    "cured",
 )
 
 
@@ -59,21 +61,27 @@ def _all_text(feedback) -> str:
     ).lower()
 
 
-def test_zero_events_is_observational_and_deterministic() -> None:
+def test_zero_events_does_not_claim_fluency() -> None:
     metrics = _metrics()
     first = generate_feedback([], metrics, "The morning light moved across the quiet lake.")
     second = generate_feedback([], metrics, "The morning light moved across the quiet lake.")
 
     assert first == second
     assert first.summary == "No repetition or prolongation events were detected in this recording."
-    assert "No repetition or prolongation events were marked." in first.strengths
-    assert any("did not mark" in item for item in first.observations)
-    assert "110" in " ".join(first.observations)
-    assert "18%" in " ".join(first.observations)
-    assert first.next_step.startswith("Try another prompt")
+    assert first.strengths == ["You finished the prompt."]
+    assert "this recording only" in " ".join(first.observations)
+    assert "fluent" not in _all_text(first)
+    assert "cured" not in _all_text(first)
+    assert first.next_step.startswith("Try the same prompt again.")
+    assert "easy, quiet onset" in first.next_step
 
 
-def test_mixed_events_describe_each_marked_span() -> None:
+def test_zero_events_without_transcript() -> None:
+    feedback = generate_feedback([], _metrics(), "")
+    assert any("No words were transcribed" in item for item in feedback.observations)
+
+
+def test_mixed_events_quote_timestamps_and_text() -> None:
     events = [
         _event("evt-1", SpeechEventType.repetition, 1.2, 1.6, "m-morning", 0.86),
         _event("evt-2", SpeechEventType.prolongation, 4.1, 4.8, "lake", 0.79),
@@ -90,25 +98,25 @@ def test_mixed_events_describe_each_marked_span() -> None:
     assert any("prolongation was marked from 4.1s to 4.8s" in item for item in feedback.observations)
     assert "m-morning" in " ".join(feedback.observations)
     assert "lake" in " ".join(feedback.observations)
-    assert "86%" in " ".join(feedback.observations)
-    assert feedback.next_step.startswith("Repeat this prompt once more.")
-    assert "first marked word" in feedback.next_step
+    assert feedback.next_step == (
+        "Try the same prompt again. Easy onset on “m-morning”, and don’t hold “lake”."
+    )
 
 
-def test_repetition_only_next_step() -> None:
-    events = [_event("evt-1", SpeechEventType.repetition, 0.4, 0.9, "name")]
+def test_repetition_only_next_step_quotes_the_word() -> None:
+    events = [_event("evt-1", SpeechEventType.repetition, 0.4, 0.9, "the the")]
     metrics = _metrics(total_events=1, repetitions=1, prolongations=0)
-    feedback = generate_feedback(events, metrics, "My name is Alex.")
+    feedback = generate_feedback(events, metrics, "the the morning")
     assert "1 event was detected" in feedback.summary
-    assert "repetitions" in feedback.next_step
+    assert "easy onset on “the the”" in feedback.next_step
 
 
-def test_prolongation_only_next_step() -> None:
+def test_prolongation_only_next_step_quotes_the_word() -> None:
     events = [_event("evt-1", SpeechEventType.prolongation, 2.0, 2.6, "walk")]
     metrics = _metrics(total_events=1, repetitions=0, prolongations=1)
     feedback = generate_feedback(events, metrics, "Today I went for a walk.")
     assert "1 prolongation" in feedback.summary
-    assert "without holding them" in feedback.next_step
+    assert "On “walk”, keep the sound moving instead of holding it." in feedback.next_step
 
 
 def test_caps_event_observations_and_notes_remainder() -> None:
@@ -123,8 +131,7 @@ def test_caps_event_observations_and_notes_remainder() -> None:
     feedback = generate_feedback(events, metrics, "a b c d e")
     event_lines = [item for item in feedback.observations if "was marked from" in item]
     assert len(event_lines) == 3
-    assert any("2 additional events were marked later" in item for item in feedback.observations)
-    assert any("first two seconds" in item for item in feedback.observations)
+    assert any("2 more events were marked later" in item for item in feedback.observations)
 
 
 def test_same_inputs_always_match() -> None:
@@ -145,6 +152,8 @@ def test_feedback_does_not_diagnose() -> None:
         _event("evt-2", SpeechEventType.prolongation, 4.1, 4.8, "lake", 0.79),
     ]
     metrics = _metrics(total_events=2, repetitions=1, prolongations=1)
-    text = _all_text(generate_feedback(events, metrics, "The morning light moved across the quiet lake."))
+    text = _all_text(
+        generate_feedback(events, metrics, "The morning light moved across the quiet lake.")
+    )
     for term in _DIAGNOSIS_TERMS:
         assert term not in text

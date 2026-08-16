@@ -1,4 +1,4 @@
-import type { AnalysisFeedback, AnalysisMetrics, AnalysisResult } from "../types/analysis";
+import type { AnalysisFeedback, AnalysisMetrics, AnalysisResult, SpeechEvent } from "../types/analysis";
 import { recordingFilename } from "./audio";
 import { requireSupabase } from "../lib/supabase";
 
@@ -96,4 +96,38 @@ export async function saveAnalysisResult(
   }
 
   return { sessionId: session.id, audioSaved, warning };
+}
+
+const SIGNED_URL_SECONDS = 300;
+
+export async function listSessionEvents(sessionId: string): Promise<SpeechEvent[]> {
+  const { data, error } = await requireSupabase()
+    .from("stutter_events")
+    .select("id, type, start_seconds, end_seconds, confidence, text")
+    .eq("session_id", sessionId)
+    .order("start_seconds", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    type: row.type === "prolongation" ? "prolongation" : "repetition",
+    start: Number(row.start_seconds),
+    end: Number(row.end_seconds),
+    confidence: Number(row.confidence ?? 0),
+    text: String(row.text ?? ""),
+  }));
+}
+
+export async function getRecordingSignedUrl(audioPath: string): Promise<string> {
+  const { data, error } = await requireSupabase()
+    .storage.from("recordings")
+    .createSignedUrl(audioPath, SIGNED_URL_SECONDS);
+
+  if (error || !data?.signedUrl) {
+    throw new Error(error?.message || "Could not create a playback link for this recording.");
+  }
+  return data.signedUrl;
 }

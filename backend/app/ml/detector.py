@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+import logging
+import os
 
 import numpy as np
 
@@ -89,11 +91,21 @@ class MockStutterDetector(StutterDetector):
 def get_detector() -> StutterDetector:
     """Return the active detector.
 
-    To switch to a real model later:
-    1. Add RealStutterDetector(StutterDetector) in this package.
-    2. Implement detect(self, audio: AudioClip) -> DetectionResult
-       using audio.samples (mono float32) and audio.sample_rate (16000).
-    3. Change the return below to RealStutterDetector().
-    Do not change routers, schemas, or the HTTP contract.
+    Default: WhisperStutterDetector (local faster-whisper + heuristics).
+    Fallback: MockStutterDetector if SPEAKTEACH_DETECTOR=mock or Whisper
+    cannot be imported.
     """
-    return MockStutterDetector()
+    choice = os.getenv("SPEAKTEACH_DETECTOR", "whisper").strip().lower()
+    if choice in {"mock", "fake"}:
+        return MockStutterDetector()
+
+    try:
+        from app.ml.whisper_detector import WhisperStutterDetector
+
+        model_size = os.getenv("WHISPER_MODEL_SIZE", "tiny.en").strip() or "tiny.en"
+        return WhisperStutterDetector(model_size=model_size)
+    except Exception:
+        logging.getLogger(__name__).exception(
+            "Whisper detector unavailable; using mock"
+        )
+        return MockStutterDetector()

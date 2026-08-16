@@ -8,17 +8,13 @@ def generate_feedback(
     metrics: AnalysisMetrics,
     transcript: str,
 ) -> AnalysisFeedback:
-    """Build deterministic, observational feedback from analysis output.
-
-    Describes detected events and measured metrics only. Does not diagnose
-    a medical condition or claim a cause.
-    """
+    """Deterministic practice notes from detected events. Not a diagnosis."""
     ordered = sorted(events, key=lambda event: (event.start, event.end, event.id))
     return AnalysisFeedback(
         summary=_summary(metrics),
-        strengths=_strengths(metrics, transcript),
-        observations=_observations(ordered, metrics),
-        next_step=_next_step(ordered, metrics),
+        strengths=_strengths(),
+        observations=_observations(ordered, transcript),
+        next_step=_next_step(ordered),
     )
 
 
@@ -33,76 +29,75 @@ def _summary(metrics: AnalysisMetrics) -> str:
     return f"{total} {noun} {verb} detected in this recording: {counts}."
 
 
-def _strengths(metrics: AnalysisMetrics, transcript: str) -> list[str]:
-    strengths = ["You completed the recording in one take."]
-    if transcript.strip():
-        strengths.append("A transcript was produced from this take.")
-    if metrics.total_events == 0:
-        strengths.append("No repetition or prolongation events were marked.")
-    return strengths
+def _strengths() -> list[str]:
+    return ["You finished the prompt."]
 
 
-def _observations(events: list[SpeechEvent], metrics: AnalysisMetrics) -> list[str]:
-    observations: list[str] = []
-
+def _observations(events: list[SpeechEvent], transcript: str) -> list[str]:
     if not events:
-        observations.append(
-            "The detector did not mark repetition or prolongation intervals in this take."
-        )
-    else:
-        for event in events[:_MAX_EVENT_OBSERVATIONS]:
-            observations.append(_event_observation(event))
-        remaining = len(events) - _MAX_EVENT_OBSERVATIONS
-        if remaining > 0:
-            extra = "event" if remaining == 1 else "events"
-            observations.append(f"{remaining} additional {extra} were marked later in the recording.")
+        if transcript.strip():
+            return [
+                "Nothing in this take was marked as a repetition or a prolongation. "
+                "That is a result for this recording only."
+            ]
+        return [
+            "No words were transcribed, and no repetition or prolongation was marked. "
+            "That is a result for this recording only."
+        ]
 
-        early = sum(1 for event in events if event.start < 2.0)
-        if early >= 2:
-            observations.append("More than one event was marked in the first two seconds.")
-
-    if metrics.speech_rate > 0:
-        observations.append(
-            f"Speech rate was measured at {metrics.speech_rate:g} words per minute."
-        )
-
-    pause_percent = round(metrics.pause_ratio * 100)
-    observations.append(f"Pauses accounted for {pause_percent}% of the recording duration.")
+    observations = [_event_observation(event) for event in events[:_MAX_EVENT_OBSERVATIONS]]
+    remaining = len(events) - _MAX_EVENT_OBSERVATIONS
+    if remaining > 0:
+        extra = "event" if remaining == 1 else "events"
+        observations.append(f"{remaining} more {extra} were marked later in the recording.")
     return observations
 
 
-def _next_step(events: list[SpeechEvent], metrics: AnalysisMetrics) -> str:
-    if metrics.total_events == 0 or not events:
-        return "Try another prompt and keep a steady, unhurried pace."
+def _next_step(events: list[SpeechEvent]) -> str:
+    if not events:
+        return "Try the same prompt again. Start the first word with an easy, quiet onset."
 
-    if metrics.repetitions > 0 and metrics.prolongations == 0:
+    repetition = _first_of_type(events, SpeechEventType.repetition)
+    prolongation = _first_of_type(events, SpeechEventType.prolongation)
+
+    if repetition and not prolongation:
         return (
-            "Repeat this prompt once more. Ease into the words that were marked as repetitions."
+            f"Try the same prompt again. Use an easy onset on {_quote(repetition.text)} "
+            "— start the sound quietly, then slide into the word."
         )
-    if metrics.prolongations > 0 and metrics.repetitions == 0:
+    if prolongation and not repetition:
         return (
-            "Repeat this prompt once more. Move through the marked sounds without holding them."
+            f"Try the same prompt again. On {_quote(prolongation.text)}, "
+            "keep the sound moving instead of holding it."
         )
+    assert repetition is not None and prolongation is not None
     return (
-        "Repeat this prompt once more. Ease into the first marked word "
-        "and release the last marked sound without holding it."
+        f"Try the same prompt again. Easy onset on {_quote(repetition.text)}, "
+        f"and don’t hold {_quote(prolongation.text)}."
     )
 
 
 def _event_observation(event: SpeechEvent) -> str:
-    label = _type_label(event.type)
+    label = "repetition" if event.type == SpeechEventType.repetition else "prolongation"
     confidence_pct = round(event.confidence * 100)
-    quoted = event.text.strip() or "an unmarked span"
     return (
         f"A {label} was marked from {event.start:.1f}s to {event.end:.1f}s "
-        f"on “{quoted}” (confidence {confidence_pct}%)."
+        f"on {_quote(event.text)} (confidence {confidence_pct}%)."
     )
 
 
-def _type_label(event_type: SpeechEventType) -> str:
-    if event_type == SpeechEventType.repetition:
-        return "repetition"
-    return "prolongation"
+def _first_of_type(events: list[SpeechEvent], event_type: SpeechEventType) -> SpeechEvent | None:
+    for event in events:
+        if event.type == event_type:
+            return event
+    return None
+
+
+def _quote(text: str) -> str:
+    cleaned = " ".join(text.split())
+    if not cleaned:
+        return "the marked word"
+    return f"“{cleaned}”"
 
 
 def _count_phrase(repetitions: int, prolongations: int) -> str:

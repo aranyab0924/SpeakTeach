@@ -79,7 +79,10 @@ export function AccountPage({ onGoToTraining }: AccountPageProps) {
         <h1>Account</h1>
         <section className="panel">
           <p>Signed in as {user.email}</p>
-          <p className="muted">No profile table. Your auth user id identifies you.</p>
+          <p className="muted">
+            Email and password is how we protect logs and recordings. There is
+            no extra profile table — your auth user id is enough.
+          </p>
           {error ? (
             <p className="error" role="alert">
               {error}
@@ -104,7 +107,7 @@ export function AccountPage({ onGoToTraining }: AccountPageProps) {
       <section className="panel">
         <p className="muted">
           {mode === "signin"
-            ? "Sign in to save practice sessions to your log."
+            ? "Sign in with email and password to save sessions and play back your log."
             : "Create an account with email and password."}
         </p>
         <form className="auth-form" onSubmit={(event) => void handleSubmit(event)}>
